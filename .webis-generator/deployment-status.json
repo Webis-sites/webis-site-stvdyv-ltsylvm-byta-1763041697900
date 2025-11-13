@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-11-13T14:15:41.902Z",
+  "timestamp": "2025-11-13T14:27:59.015Z",
   "steps": {
     "planGenerated": false,
     "componentsGenerated": false,
@@ -9,6 +9,6 @@
     "deploymentStarted": false,
     "deploymentComplete": false
   },
-  "deployedUrl": null,
+  "deployedUrl": "https://webis-site-stvdyv-ltsylvm-byta-1763.vercel.app",
   "error": null
 }
