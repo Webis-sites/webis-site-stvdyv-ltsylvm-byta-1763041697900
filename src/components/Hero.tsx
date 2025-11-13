@@ -92,13 +92,13 @@ const PhotographyStudioHero: React.FC = () => {
         {/* Headline with staggered animation */}
         <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
           {headlineWords.map((word, index) => (
-            <span
+            <motion.span
               key={index}
               className="inline-block mr-2"
               initial={{ opacity: 0, y: 20 }}
             >
               {word}
-            </span>
+            </motion.span>
           ))}
         </h1>
 
