@@ -1,0 +1,7 @@
+
+    # robots.txt for סטודיו לצילום ביתא
+    User-agent: *
+    Allow: /
+
+    # Sitemap
+    Sitemap: https://סטודיו-לצילום-ביתא.com/sitemap.xml
