@@ -1,0 +1,18 @@
+{
+    "name": "סטודיו לצילום ביתא",
+    "short_name": "סטודיו",
+    "description": "אנחנו סטודיו לצילום מוביל בתחום הטכנולוגיה עם ניסיון של שנים רבות. אנחנו מתמחים במתן שירות מקצועי ואיכותי ללקוחותינו.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#4ECDC4",
+    "icons": [
+      {
+        "src": "/favicon.ico",
+        "sizes": "64x64 32x32 24x24 16x16",
+        "type": "image/x-icon"
+      }
+    ],
+    "dir": "rtl",
+    "lang": "he"
+  }
