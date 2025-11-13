@@ -1,11 +1,66 @@
 {
-  "timestamp": "2025-11-13T14:16:12.419Z",
+  "timestamp": "2025-11-13T14:17:06.627Z",
   "status": {
-    "totalComponents": 0,
+    "totalComponents": 9,
     "completedComponents": 0,
     "failedComponents": 0,
     "progress": 0
   },
-  "components": [],
+  "components": [
+    {
+      "name": "Navbar",
+      "type": "navigation",
+      "status": "pending",
+      "description": "RTL-aware navigation bar with business branding and smooth scroll navigation to page sections"
+    },
+    {
+      "name": "Hero",
+      "type": "hero",
+      "status": "pending",
+      "description": "Compelling hero section with headline, description, and primary CTA showcasing the photography studio's excellence"
+    },
+    {
+      "name": "Services",
+      "type": "services",
+      "status": "pending",
+      "description": "Showcase of photography services with visual cards and detailed descriptions"
+    },
+    {
+      "name": "Portfolio",
+      "type": "portfolio",
+      "status": "pending",
+      "description": "Dynamic portfolio gallery showcasing photography work with filtering and lightbox functionality"
+    },
+    {
+      "name": "Process",
+      "type": "process",
+      "status": "pending",
+      "description": "Visual timeline showing the photography service process from booking to delivery"
+    },
+    {
+      "name": "WhyChooseUs",
+      "type": "features",
+      "status": "pending",
+      "description": "Compelling reasons and unique value propositions for choosing the studio"
+    },
+    {
+      "name": "FAQ",
+      "type": "faq",
+      "status": "pending",
+      "description": "Accordion-style FAQ section addressing common customer questions"
+    },
+    {
+      "name": "Contact",
+      "type": "contact",
+      "status": "pending",
+      "description": "Contact form and information section for customer inquiries and bookings"
+    },
+    {
+      "name": "Footer",
+      "type": "footer",
+      "status": "pending",
+      "description": "Comprehensive footer with business information, links, and social media"
+    }
+  ],
   "repoName": "webis-site-stvdyv-ltsylvm-byta-1763041697900"
 }
