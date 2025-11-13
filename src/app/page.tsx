@@ -7,6 +7,7 @@ import Portfolio from '@/components/Portfolio';
 import Process from '@/components/Process';
 import WhyChooseUs from '@/components/WhyChooseUs';
 import FAQ from '@/components/FAQ';
+import Contact from '@/components/Contact';
 
 export default function HomePage() {
   return (
@@ -20,6 +21,7 @@ export default function HomePage() {
         <Process />
         <WhyChooseUs />
         <FAQ />
+        <Contact />
       </main>
     </>
   );
