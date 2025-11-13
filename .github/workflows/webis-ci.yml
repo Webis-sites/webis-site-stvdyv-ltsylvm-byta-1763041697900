@@ -1,0 +1,258 @@
+name: CI Testing and Auto-Fixing
+'on':
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: {}
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  NODE_VERSION: '18'
+  FIXER_API_ENDPOINT: https://webis-bndygehufph2bccs.westeurope-01.azurewebsites.net/api/ai-fix
+  DEPLOYMENT_API_ENDPOINT: https://webis-bndygehufph2bccs.westeurope-01.azurewebsites.net/api/deploy
+  MAX_FIX_ATTEMPTS: '3'
+jobs:
+  test-and-collect-errors:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Wait for additional commits
+        run: echo "⏱️ Waiting for 2 minutes to ensure no additional commits are coming..."; sleep 60
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install Dependencies
+        run: npm install
+      - name: Run Tests
+        id: run-tests
+        continue-on-error: true
+        run: |-
+
+          if ! npm test > test.log 2>&1; then
+            echo "Tests failed."
+            echo "test-status=failed" >> $GITHUB_OUTPUT
+          else
+            echo "Tests passed."
+            echo "test-status=passed" >> $GITHUB_OUTPUT
+          fi
+      - name: Run TypeScript Check and Collect Errors
+        id: type-check
+        continue-on-error: true
+        run: |-
+
+          # Use machine-readable output format to capture file paths
+          if ! npx tsc --noEmit --pretty false > type.log 2>&1; then
+            echo "Found TypeScript errors."
+            echo "has-errors=true" >> $GITHUB_OUTPUT
+          fi
+      - name: Run Build and Collect Errors
+        id: build
+        continue-on-error: true
+        run: |-
+
+          if ! npm run build > build.log 2>&1; then
+            echo "Found build errors."
+            echo "has-errors=true" >> $GITHUB_OUTPUT
+          fi
+      - name: Process Error Logs and Build Payload
+        id: process-errors
+        if: steps.type-check.outputs.has-errors == 'true' || steps.build.outputs.has-errors == 'true'
+        run: |-
+          #!/bin/bash
+          echo "🔍 Processing error logs and building payload..."
+          sudo apt-get update && sudo apt-get install -y jq
+
+          # Debugging - show logs
+          echo "=== type.log content ==="
+          cat type.log || echo "no type.log"
+          echo "=== build.log content ==="
+          cat build.log || echo "no build.log"
+
+          PROJECT_STRUCTURE=$(find . -type f -not -path "*/node_modules/*" -not -path "*/.git/*" | sort)
+
+          jq -n   --arg projectName "${{ github.repository }}"   --arg repoName "${{ github.event.repository.name }}"   --arg commit "${{ github.sha }}"   --arg branch "${{ github.ref_name }}"   --arg projectStructure "$PROJECT_STRUCTURE"   --arg packageJson "$(cat package.json 2>/dev/null)"   --arg tsConfig "$(cat tsconfig.json 2>/dev/null)"   '{
+              "projectName": $projectName,
+              "repoName": $repoName,
+              "commit": $commit,
+              "branch": $branch,
+              "errors": [],
+              "projectStructure": $projectStructure,
+              "packageJson": (try ($packageJson | fromjson) catch null),
+              "tsConfig": (try ($tsConfig | fromjson) catch null)
+            }' > error_payload.json
+
+          process_typescript_errors() {
+            if [[ -f "type.log" ]]; then
+              echo "Parsing TypeScript errors..."
+              while IFS= read -r line; do
+                if [[ $line =~ ^(.+)\(([0-9]+),([0-9]+)\):\ error\ [A-Za-z0-9]+:\ (.*)$ ]]; then
+                  file="${BASH_REMATCH[1]}"
+                  lineno="${BASH_REMATCH[2]}"
+                  col="${BASH_REMATCH[3]}"
+                  msg="${BASH_REMATCH[4]}"
+                  
+                  # Validate that we have valid values
+                  if [[ -n "$file" && -n "$lineno" && -n "$col" && -n "$msg" ]]; then
+                    echo "Processing TypeScript error: $file:$lineno:$col - $msg"
+                    if jq --arg file "$file" --arg line "$lineno" --arg column "$col" --arg msg "$msg"              '.errors += [{"type":"type","file":$file,"line":($line|tonumber),"column":($column|tonumber),"message":$msg,"severity":"error"}]' error_payload.json > temp.json 2>/dev/null; then
+                      mv temp.json error_payload.json
+                    else
+                      echo "Failed to process TypeScript error with jq, skipping: $line"
+                      rm -f temp.json
+                    fi
+                  else
+                    echo "Skipping invalid TypeScript error line: $line"
+                  fi
+                fi
+              done < type.log
+            else
+              echo "No type.log found"
+            fi
+          }
+
+          process_build_errors() {
+            if [[ -f "build.log" ]]; then
+              echo "Parsing build errors..."
+              while IFS= read -r line; do
+                if [[ $line =~ ([[:alnum:]\._\/\\-]+\.(tsx|jsx|ts|js)):([0-9]+):([0-9]+) ]]; then
+                  file="${BASH_REMATCH[1]}"
+                  lineno="${BASH_REMATCH[2]}"
+                  col="${BASH_REMATCH[3]}"
+                  msg="$line"
+                  
+                  # Validate that we have valid values
+                  if [[ -n "$file" && -n "$lineno" && -n "$col" && -n "$msg" ]]; then
+                    echo "Processing build error: $file:$lineno:$col"
+                    if jq --arg file "$file" --arg line "$lineno" --arg column "$col" --arg msg "$msg"              '.errors += [{"type":"build","file":$file,"line":($line|tonumber),"column":($column|tonumber),"message":$msg,"severity":"error"}]' error_payload.json > temp.json 2>/dev/null; then
+                      mv temp.json error_payload.json
+                    else
+                      echo "Failed to process build error with jq, skipping: $line"
+                      rm -f temp.json
+                    fi
+                  else
+                    echo "Skipping invalid build error line: $line"
+                  fi
+                else
+                  if [[ $line =~ ([[:alnum:]\._\/\\-]+\.(tsx|jsx|ts|js)) ]]; then
+                    file="${BASH_REMATCH[1]}"
+                    msg="$line"
+                    
+                    # Validate that we have valid values
+                    if [[ -n "$file" && -n "$msg" ]]; then
+                      echo "Processing build error (no line numbers): $file"
+                      if jq --arg file "$file" --arg msg "$msg"                '.errors += [{"type":"build","file":$file,"message":$msg,"severity":"error"}]' error_payload.json > temp.json 2>/dev/null; then
+                        mv temp.json error_payload.json
+                      else
+                        echo "Failed to process build error with jq, skipping: $line"
+                        rm -f temp.json
+                      fi
+                    else
+                      echo "Skipping invalid build error line: $line"
+                    fi
+                  fi
+                fi
+              done < build.log
+            else
+              echo "No build.log found"
+            fi
+          }
+
+          process_typescript_errors
+          process_build_errors
+
+          COUNT=$(jq '.errors | length' error_payload.json)
+          echo "📊 Error processing complete. Found $COUNT errors."
+          if [[ "$COUNT" -gt 0 ]]; then
+            echo "payload-exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "payload-exists=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Send Errors to AI Fixer API
+        if: steps.process-errors.outputs.payload-exists == 'true'
+        run: |-
+
+          echo "🔧 Sending errors to AI Fixer API..."
+          RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d @error_payload.json "${{ env.FIXER_API_ENDPOINT }}")
+          echo "AI Fixer API Response: $RESPONSE"
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        if: steps.process-errors.outputs.payload-exists == 'true' || steps.run-tests.outputs.test-status == 'failed'
+        with:
+          name: error-logs
+          path: |-
+            *.log
+            error_payload.json
+          retention-days: 7
+      - name: Generate Summary Report
+        if: always()
+        run: |-
+
+          REPORT_STATUS="✅ Passed"
+          if [[ "${{ steps.type-check.outputs.has-errors }}" == "true" || "${{ steps.build.outputs.has-errors }}" == "true" ]]; then
+            REPORT_STATUS="❌ Failed"
+          fi
+
+          TEST_STATUS="✅ Passed"
+          if [[ "${{ steps.run-tests.outputs.test-status }}" == "failed" ]]; then
+            TEST_STATUS="❌ Failed"
+          fi
+
+          TS_ERRORS="✅ None Found"
+          if [[ "${{ steps.type-check.outputs.has-errors }}" == "true" ]]; then
+            TS_ERRORS="❌ Found"
+          fi
+
+          BUILD_ERRORS="✅ None Found"
+          if [[ "${{ steps.build.outputs.has-errors }}" == "true" ]]; then
+            BUILD_ERRORS="❌ Found"
+          fi
+
+          cat > ./report.md << EOF
+          # CI Testing Report
+
+          **Repository:** ${{ github.repository }}
+          **Branch:** ${{ github.ref_name }}
+          **Commit:** ${{ github.sha }}
+
+          ---
+
+          ### Build Status
+          - Build: $REPORT_STATUS
+          - Test Status: $TEST_STATUS
+          - TypeScript Errors: $TS_ERRORS
+          - Build Errors: $BUILD_ERRORS
+
+          See attached artifacts for detailed logs and error data.
+          EOF
+      - name: Upload Summary Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: summary-report
+          path: report.md
+          retention-days: 7
+      - name: Trigger Deployment
+        if: steps.type-check.outputs.has-errors != 'true' && steps.build.outputs.has-errors != 'true' && steps.run-tests.outputs.test-status == 'passed'
+        run: |-
+
+          echo "🚀 All tests passed! Triggering deployment..."
+          cat > deployment_payload.json << EOF
+          {
+            "projectName": "${{ github.repository }}",
+            "repoName": "${{ github.event.repository.name }}",
+            "commit": "${{ github.sha }}",
+            "branch": "${{ github.ref_name }}"
+          }
+          EOF
+          DEPLOY_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d @deployment_payload.json "${{ env.DEPLOYMENT_API_ENDPOINT }}")
+          echo "Deployment API Response: $DEPLOY_RESPONSE"
+          echo "✅ Deployment triggered successfully"
