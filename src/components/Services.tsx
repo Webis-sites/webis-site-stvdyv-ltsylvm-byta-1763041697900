@@ -73,145 +73,121 @@ const services: Service[] = [
   }
 ];
 
-const ServicesSection: React.FC = () => {
-  const [visibleServices, setVisibleServices] = useState<number[]>([]);
-  const serviceRefs = useRef<(HTMLDivElement | null)[]>([]);
+const Services = () => {
+  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const sectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          const serviceId = parseInt(entry.target.getAttribute("data-id") || "0");
-          if (entry.isIntersecting && !visibleServices.includes(serviceId)) {
-            setVisibleServices((prev) => [...prev, serviceId]);
+          if (entry.isIntersecting) {
+            entry.target.classList.add("animate-fade-in");
           }
         });
       },
-      { threshold: 0.2 }
+      { threshold: 0.1 }
     );
 
-    serviceRefs.current.forEach((ref) => {
-      if (ref) observer.observe(ref);
-    });
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
 
     return () => {
-      serviceRefs.current.forEach((ref) => {
-        if (ref) observer.unobserve(ref);
-      });
+      if (sectionRef.current) {
+        observer.unobserve(sectionRef.current);
+      }
     };
-  }, [visibleServices]);
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.2
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut"
-      }
-    }
-  };
-
-  const headerVariants = {
-    hidden: { opacity: 0, y: -20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.8,
-        ease: "easeOut"
-      }
-    }
-  };
+  }, []);
 
   return (
-    <section id="services-section" className="py-16 px-4 md:px-8 bg-gradient-to-br from-gray-50 to-gray-100 dir-rtl" dir="rtl">
-      <div className="container mx-auto">
+    <section id="services" className="py-20 bg-gray-50" ref={sectionRef}>
+      <div className="container mx-auto px-4">
         <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
           className="text-center mb-16"
-          initial="hidden"
-          animate="visible"
-          variants={headerVariants}
         >
-          <h2 className="text-4xl md:text-5xl font-bold mb-4 text-gray-800 relative inline-block">
-            השירותים שלנו
-            <span className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-[#4ECDC4] to-[#45B7D1]"></span>
-          </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            אנו מציעים מגוון רחב של שירותי צילום מקצועיים המותאמים לצרכים האישיים והעסקיים שלך
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">השירותים שלנו</h2>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            אנו מציעים מגוון רחב של שירותי צילום מקצועיים המותאמים לצרכים שלך
           </p>
         </motion.div>
 
-        <motion.div
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {services.map((service, index) => (
             <motion.div
               key={service.id}
-              className="relative overflow-hidden rounded-xl bg-white shadow-lg hover:shadow-xl transition-all duration-300 group"
-              variants={itemVariants}
-              initial="hidden"
-              animate={visibleServices.includes(service.id) ? "visible" : "hidden"}
-              ref={(el) => (serviceRefs.current[index] = el)}
-              data-id={service.id}
-              whileHover={{ y: -5 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: index * 0.1 }}
+              className="bg-white rounded-lg shadow-lg overflow-hidden cursor-pointer transform transition-transform hover:scale-105"
+              onClick={() => setSelectedService(service)}
             >
               <div className="relative h-48 overflow-hidden">
-                <div 
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110"
-                  style={{ backgroundImage: `url(${service.imageUrl})` }}
-                  aria-hidden="true"
-                ></div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
-                <div className="absolute bottom-0 right-0 p-4 text-white">
-                  <service.icon className="text-3xl text-[#4ECDC4]" aria-hidden="true" />
+                <img
+                  src={service.imageUrl}
+                  alt={service.title}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <div className="absolute bottom-4 left-4 text-white">
+                  <service.icon className="text-3xl mb-2" />
                 </div>
               </div>
-
               <div className="p-6">
-                <h3 className="text-xl font-bold mb-2 text-right text-gray-800 flex items-center justify-end">
-                  {service.title}
-                </h3>
-                <p className="text-gray-600 text-right mb-4">{service.description}</p>
-                
-                <div className="overflow-hidden h-0 group-hover:h-auto transition-all duration-300 opacity-0 group-hover:opacity-100">
-                  <div className="pt-4 border-t border-gray-200">
-                    <p className="text-gray-700 text-right">{service.extendedDescription}</p>
-                  </div>
-                </div>
-                
-                <div className="mt-4 flex justify-end">
-                  <button 
-                    className="text-[#45B7D1] hover:text-[#4ECDC4] font-medium transition-colors duration-300 flex items-center gap-2"
-                    aria-label={`קרא עוד על ${service.title}`}
-                  >
-                    קרא עוד
-                    <span className="transform rotate-180">&#8592;</span>
-                  </button>
-                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">{service.title}</h3>
+                <p className="text-gray-600">{service.description}</p>
               </div>
-              
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#4ECDC4] to-[#45B7D1]"></div>
             </motion.div>
           ))}
-        </motion.div>
+        </div>
+
+        {selectedService && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setSelectedService(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="relative h-64 overflow-hidden">
+                <img
+                  src={selectedService.imageUrl}
+                  alt={selectedService.title}
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  onClick={() => setSelectedService(null)}
+                  className="absolute top-4 right-4 bg-white rounded-full p-2 hover:bg-gray-100"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="p-8">
+                <div className="flex items-center mb-4">
+                  <selectedService.icon className="text-4xl text-blue-600 mr-4" />
+                  <h3 className="text-3xl font-bold text-gray-900">{selectedService.title}</h3>
+                </div>
+                <p className="text-gray-600 text-lg mb-4">{selectedService.description}</p>
+                <p className="text-gray-700 leading-relaxed">{selectedService.extendedDescription}</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </div>
     </section>
   );
 };
 
-export default ServicesSection;
+export default Services;
