@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-11-13T14:23:06.143Z",
+  "timestamp": "2025-11-13T14:23:38.411Z",
   "status": {
     "totalComponents": 9,
-    "completedComponents": 5,
+    "completedComponents": 6,
     "failedComponents": 0,
-    "progress": 56
+    "progress": 67
   },
   "components": [
     {
@@ -40,7 +40,7 @@
     {
       "name": "WhyChooseUs",
       "type": "features",
-      "status": "pending",
+      "status": "completed",
       "description": "Compelling reasons and unique value propositions for choosing the studio"
     },
     {
